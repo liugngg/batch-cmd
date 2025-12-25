@@ -1,0 +1,4 @@
+{
+    "audio": "ffmpeg -i {input} -c:v libx264 -crf 25 -c:a aac {output}",
+    "audio2": "ffmpeg -i {input} -c:v libx264 -crf 20 -c:a aac {output}"
+}
