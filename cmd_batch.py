@@ -550,12 +550,13 @@ class BatchProcessorApp:
         self.root.after(0, self.log, f"共计耗时：{hours} 小时 {minutes} 分钟 {seconds} 秒", "结果")
         self.root.after(0, self.log, "==========================", "结果")
         
+        # 任务完成后关机
+        if self.shutdown_var.get() and self.is_running: 
+            os.system("shutdown /s /t 60")
+        
         self.is_running = False
         self.current_process = None
         self.start_btn.configure(text="💪 开始批处理", command=self.start_process, bootstyle="success", width=12)
-        
-        if self.shutdown_var.get() and self.is_running: 
-            os.system("shutdown /s /t 60")
 
     def update_status(self, current, files_total):
         pct = (current / files_total) * 100
