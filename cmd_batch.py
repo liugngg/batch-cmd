@@ -28,6 +28,7 @@ class BatchProcessorApp:
         # 核心变量
         # 支持的文件格式
         self.supported_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv')
+        self.process_signal= ["frame=", "time=", "正在处理视频："]
         self.is_running = False
         self.current_process = None 
         self.recursive_var = ttkb.BooleanVar(value=False)
@@ -35,6 +36,7 @@ class BatchProcessorApp:
         self.overwrite_var = ttkb.StringVar(value="skip") 
         self.output_path_var = ttkb.StringVar(value="")
         self.naming_rule_var = ttkb.StringVar(value="{name}_done{ext}")
+        self.use_own_dir = True
         
         self.setup_ui()
         self.create_context_menu()
@@ -112,11 +114,11 @@ class BatchProcessorApp:
 
         ttkb.Label(output_tab, text="输出目录:").grid(row=0, column=0, sticky=W, pady=5)
         ttkb.Entry(output_tab, textvariable=self.output_path_var, width=60,state="readonly").grid(row=0, column=1, sticky=EW, padx=5)
-        ttkb.Button(output_tab, text="🔍 浏览", command=self.browse_output, bootstyle="warning-outline", width=12,padding=3).grid(row=0, column=2,padx=(10,0))
+        ttkb.Button(output_tab, text="🔍 浏览", command=self.browse_output, bootstyle="warning-outline", width=12).grid(row=0, column=2,padx=(10,0))
 
         ttkb.Label(output_tab, text="命名规则:").grid(row=1, column=0, sticky=W, pady=15)
         ttkb.Entry(output_tab, textvariable=self.naming_rule_var).grid(row=1, column=1, sticky=EW, padx=5)
-        ttkb.Label(output_tab, text="{name}=原名, {ext}=原后缀", font=("", 8), foreground="gray").grid(row=1, column=2)
+        ttkb.Label(output_tab, text="{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).grid(row=1, column=2)
 
         ttkb.Label(output_tab, text="同名处理:").grid(row=2, column=0, sticky=W)
         conflict_f = ttkb.Frame(output_tab)
@@ -141,10 +143,10 @@ class BatchProcessorApp:
         self.preset_name_entry.pack(side=RIGHT)
         ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=5)
 
-        self.cmd_text = ttkb.Text(cmd_frame, height=3, font=("Consolas", 10))
+        self.cmd_text = ttkb.Text(cmd_frame, height=4, font=("Consolas", 11))
         self.cmd_text.configure(foreground="blue")
         self.cmd_text.pack(fill=X, pady=5)
-        self.cmd_text.insert(END, "ffmpeg -i {input} -c:v libx264 -crf 23 -c:a aac {output}")
+        self.cmd_text.insert(END, "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {output}")
 
 
         button_f = ttkb.Frame(main_frame)
@@ -155,7 +157,7 @@ class BatchProcessorApp:
         self.stop_btn = ttkb.Button(button_f, text="⏹️ 终止任务", command=self.stop_process, bootstyle=DANGER, width=12, state=DISABLED)
         # self.stop_btn.pack(side=RIGHT, padx=5)
         
-        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="warning-link", state=DISABLED)
+        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="warning-link")
         self.open_output.pack(side=RIGHT, padx=5)
 
         ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, bootstyle="danger", width=15).pack(side=RIGHT, padx=(5,5))
@@ -237,9 +239,12 @@ class BatchProcessorApp:
 
     def log(self, message, level="命令"):
         self.log_area.configure(state=NORMAL)
-
-        # 识别是否为 FFmpeg 进度行 (包含 frame= 或 time=)
-        is_progress_line = "frame=" in message or "time=" in message
+        # 识别是否为 FFmpeg 进度行
+        is_progress_line = False
+        for id in self.process_signal:
+            if id in message:
+                is_progress_line = True
+                break
         
         if is_progress_line and self.last_log_is_progress:
             # 如果上一行也是进度，删除最后一行 (从倒数第二字符开始所在的行首，到结尾)
@@ -354,13 +359,13 @@ class BatchProcessorApp:
             info = self.get_media_info(file)
             self.tree.insert("", END, values=(os.path.basename(file), *info, file))
 
-        # 如果输出目录为空，则设置输出目录
-        output_dir = self.output_path_var.get()
-        if not output_dir and seen:
-            # 如果没有设置输出目录，设置输出目录为第一个文件的目录
-            temp_path = list(seen)[0]
-            output_dir = os.path.dirname(temp_path) if os.path.isfile(temp_path) else temp_path
-            self.output_path_var.set(output_dir)
+        # # 如果输出目录为空，则设置输出目录
+        # output_dir = self.output_path_var.get()
+        # if not output_dir and seen:
+        #     # 如果没有设置输出目录，设置输出目录为第一个文件的目录
+        #     temp_path = list(seen)[0]
+        #     output_dir = os.path.dirname(temp_path) if os.path.isfile(temp_path) else temp_path
+        #     self.output_path_var.set(output_dir)
 
     def clear_list(self):
         for item in self.tree.get_children(): self.tree.delete(item)
@@ -381,7 +386,9 @@ class BatchProcessorApp:
 
     def browse_output(self):
         p = filedialog.askdirectory()
-        if p: self.output_path_var.set(p)
+        if p: 
+            self.output_path_var.set(p)
+            self.use_own_dir = False
 
     def register_dnd(self):
         self.tree.drop_target_register(DND_FILES)
@@ -431,28 +438,43 @@ class BatchProcessorApp:
         
         self.is_running = True
         self.start_btn.configure(text="⏹️ 终止任务", command=self.stop_process, bootstyle="danger", width=12)
-        threading.Thread(target=self.run_worker, args=(items, cmd_tpl), daemon=True).start()
+        threading.Thread(target=self.run_worker, args=(cmd_tpl,), daemon=True).start()
 
-    def run_worker(self, items, cmd_tpl):
-        out_dir = self.output_path_var.get()
-        if not os.path.exists(out_dir): os.makedirs(out_dir)
+    def run_worker(self, cmd_tpl):
+        files_list = [self.tree.item(item)['values'][-1] for item in self.tree.get_children()]   
+        if not files_list:return
+
+        # 获取输出目录
+        output_dir = self.output_path_var.get()
+        if not output_dir:
+            output_dir = os.path.dirname(files_list[0])
+            self.output_path_var.set(output_dir)
+
+        # 清空log文件
+        self.save_log("批处理任务开始",first_time=True)
+        self.root.after(0, self.log, f"启动命令：\n {cmd_tpl}", "信息")
+        self.root.after(0, self.log, "-------------------------------------", "信息")
         
-        files_total = len(items)
+        files_total = len(files_list)
         processed_count = 0
         failed_count = 0
         skip_count = 0
         total_processing_time = timedelta(0)
 
-        # 清空log文件
-        self.save_log("批处理任务开始",first_time=True)
+        # 恢复进度条及状态栏
+        self.root.after(0, lambda: self.progress.configure(value=0))
+        self.root.after(0, lambda: self.status_lbl.configure(text=f"开始执行: 1/{files_total}"))
 
-        for i, item_id in enumerate(items):
+        for i, in_path in enumerate(files_list):
             if not self.is_running: break
             
-            vals = self.tree.item(item_id)['values']
-            in_path, fname = vals[-1], vals[0]
+            fname = os.path.basename(in_path)
             name_only, ext = os.path.splitext(fname)
             out_fname = self.naming_rule_var.get().replace("{name}", name_only).replace("{ext}", ext)
+
+            if self.use_own_dir:
+                out_dir = os.path.dirname(in_path)
+                
             full_out = os.path.join(out_dir, out_fname)
 
             if os.path.exists(full_out) and self.overwrite_var.get() == "skip":
@@ -465,8 +487,7 @@ class BatchProcessorApp:
 
             # 1. 记录开始时间
             start_time = datetime.now()
-            self.root.after(0, self.log, f"第{i+1}个任务启动 ({i+1}/{files_total}): {fname}", "信息")
-            self.root.after(0, self.log, f"第{i+1}个任务开始：{start_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
+            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务启动: 【{fname}】at {start_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
 
             try:
                 self.current_process = subprocess.Popen(
@@ -484,10 +505,10 @@ class BatchProcessorApp:
                 if not self.is_running: break
                 
                 if self.current_process.returncode == 0:
-                    self.root.after(0, self.log, f"第{i+1}个任务成功完成: {out_fname}", "结果")
+                    self.root.after(0, self.log, f"第{i+1}个任务成功输出：【{full_out}】", "信息")
                     processed_count += 1
                 else:
-                    self.root.after(0, self.log, f"第{i+1}个任务处理失败: {fname}", "错误")
+                    self.root.after(0, self.log, f"第{i+1}个任务处理失败: 【{fname}】", "错误")
                     failed_count += 1
             except Exception as e:
                 self.root.after(0, self.log, f"第{i+1}个任务系统错误: {str(e)}", "错误")
@@ -495,7 +516,8 @@ class BatchProcessorApp:
             
             # 2. 记录结束时间
             end_time = datetime.now()
-            self.root.after(0, self.log, f"第{i+1}个任务结束时间：{end_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
+            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务结束 at {end_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
+    
     
             # 3. 计算时间差
             duration = end_time - start_time
@@ -507,7 +529,7 @@ class BatchProcessorApp:
             hours, remainder = divmod(total_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
             self.root.after(0, self.log, f"第{i+1}个任务耗时：{hours} 小时 {minutes} 分钟 {seconds} 秒", "信息")
-            self.save_log("-------------------------------------")
+            self.root.after(0, self.log, "-------------------------------------", "信息")
             self.update_status(i + 1, files_total)
 
         if self.is_running:
@@ -520,13 +542,13 @@ class BatchProcessorApp:
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        self.root.after(0, self.log, "=========== 处理总结 ===========", "结果")
+        self.root.after(0, self.log, "========= 处理总结 =========", "结果")
         self.root.after(0, self.log, f"文件总数：{files_total}", "结果")
         self.root.after(0, self.log, f"成功完成：{processed_count}", "结果")
         self.root.after(0, self.log, f"  已跳过：{skip_count}", "结果")
         self.root.after(0, self.log, f"处理失败：{failed_count}", "结果")
         self.root.after(0, self.log, f"共计耗时：{hours} 小时 {minutes} 分钟 {seconds} 秒", "结果")
-        self.root.after(0, self.log, "================================", "结果")
+        self.root.after(0, self.log, "==========================", "结果")
         
         self.is_running = False
         self.current_process = None

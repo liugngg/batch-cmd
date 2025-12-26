@@ -1,4 +1,4 @@
 {
-    "audio": "ffmpeg -i {input} -c:v libx264 -crf 25 -c:a aac {output}",
-    "audio2": "ffmpeg -i {input} -c:v libx264 -crf 20 -c:a aac {output}"
+    "高质量视频转码": "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {output}",
+    "lada-crf21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model-path \"D:\\Programs\\lada\\_internal\\model_weights\\lada_mosaic_detection_model_v3.1_accurate.pt\" --max-clip-length 360 --custom-encoder-options \"rc vbr_hq -cq 21\" --output {output}"
 }
