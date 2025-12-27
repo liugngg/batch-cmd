@@ -48,6 +48,8 @@ class BatchProcessorApp:
 
         main_frame = ttkb.Frame(self.root, padding=15)
         main_frame.pack(fill=BOTH, expand=YES)
+        # 创建 Style 对象
+        style = ttkb.Style()
 
         # --- 1. 顶部标签页 (输入/输出设置) ---
         self.notebook = ttkb.Notebook(main_frame, style="secondary")
@@ -61,15 +63,14 @@ class BatchProcessorApp:
         in_btn_frame.pack(fill=X, pady=(0, 10))
         ttkb.Button(in_btn_frame, text="🎬 添加文件", command=self.add_files, bootstyle="primary-link").pack(side=LEFT, padx=5)
         ttkb.Button(in_btn_frame, text="📂 添加文件夹", command=self.add_folder, bootstyle="warning-link").pack(side=LEFT, padx=5)
-        ttkb.Checkbutton(in_btn_frame, text="递归子目录", variable=self.recursive_var, bootstyle="warning-round-toggle").pack(side=LEFT, padx=10)
+        style.configure("MyColor.TCheckbutton", foreground="seagreen")
+        ttkb.Checkbutton(in_btn_frame, text="递归子目录", variable=self.recursive_var, style="MyColor.TCheckbutton").pack(side=LEFT, padx=10)
         ttkb.Button(in_btn_frame, text="清空列表", command=self.clear_list, bootstyle="danger-link",width=8).pack(side=RIGHT, padx=0)
 
         # 文件列表框：
         tree_container = ttkb.Frame(input_tab)
         tree_container.pack(fill=BOTH, expand=YES)
 
-        # 1. 创建 Style 对象
-        style = ttkb.Style()
         # 2. 配置 Treeview 的字体（表格内部内容）
         # 注意：'Treeview' 是组件的样式名
         style.configure(
@@ -134,15 +135,17 @@ class BatchProcessorApp:
 
         preset_row = ttkb.Frame(cmd_frame)
         preset_row.pack(fill=X, pady=5)
-        ttkb.Label(preset_row, text="选择预设:", bootstyle="primary").pack(side=LEFT, padx=5)
-        self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary",state="readonly",width=30)
-        self.preset_combo.pack(side=LEFT, padx=5)
+        ttkb.Label(preset_row, text="选择预设:", bootstyle="primary").pack(side=LEFT, padx=0)
+        self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary",state="readonly",width=25)
+        self.preset_combo.pack(side=LEFT, padx=(5,0))
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_change)
+        ttkb.Button(preset_row, text="⚒️ 编 辑", command=self.edit_preset, bootstyle="dark-link", width=10,padding=0).pack(side=LEFT, padx=(0,10))
+    
         
-        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="warning-link", width=10,padding=0).pack(side=RIGHT, padx=(0,10))
+        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="warning-link", width=10,padding=0).pack(side=RIGHT, padx=(0,5))
         self.preset_name_entry = ttkb.Entry(preset_row, bootstyle="primary",width=30)
         self.preset_name_entry.pack(side=RIGHT)
-        ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=5)
+        ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=0)
 
         self.cmd_text = ttkb.Text(cmd_frame, height=4, font=("Consolas", 11))
         self.cmd_text.configure(foreground="blue")
@@ -152,8 +155,8 @@ class BatchProcessorApp:
 
         button_f = ttkb.Frame(main_frame)
         button_f.pack(fill=X, pady=5)
-        self.start_btn = ttkb.Button(button_f, text="💪 开始批处理", command=self.start_process, bootstyle=SUCCESS, width=12, padding=2)
-        self.start_btn.pack(side=RIGHT, padx=5)
+        self.start_btn = ttkb.Button(button_f, text="💪 开始批处理", command=self.start_process, bootstyle=SUCCESS, width=15, padding=3)
+        self.start_btn.pack(side=RIGHT, padx=(5,15))
 
         self.stop_btn = ttkb.Button(button_f, text="⏹️ 终止任务", command=self.stop_process, bootstyle=DANGER, width=12, state=DISABLED)
         # self.stop_btn.pack(side=RIGHT, padx=5)
@@ -161,7 +164,7 @@ class BatchProcessorApp:
         self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="warning-link")
         self.open_output.pack(side=RIGHT, padx=5)
 
-        ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, bootstyle="danger", width=15).pack(side=RIGHT, padx=(5,5))
+        ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, style="MyColor.TCheckbutton", width=15).pack(side=RIGHT, padx=(5,5))
         ttkb.Button(button_f, text="🗑清空日志", command=self.clear_logs, bootstyle="warning-link").pack(side=LEFT)
 
         # 日志工具栏
@@ -469,6 +472,17 @@ class BatchProcessorApp:
             presets = json.load(f)
             self.cmd_text.delete("1.0", END)
             self.cmd_text.insert(END, presets.get(name, ""))
+
+    def edit_preset(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    subprocess.Popen(['notepad.exe', CONFIG_FILE])
+            except:
+                messagebox.showwarning("警告", "无法打开配置文件")
+
+        else:
+            messagebox.showwarning("警告", "配置文件尚不存在")
 
     # --- 执行引擎 ---
     def start_process(self):
