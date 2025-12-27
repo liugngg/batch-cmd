@@ -1,0 +1,29 @@
+name: py38basic
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+  - conda-forge
+dependencies:
+  - ca-certificates=2025.2.25=haa95532_0
+  - openssl=1.1.1w=h2bbff1b_0
+  - pip=24.2=py38haa95532_0
+  - python=3.8.10=hdbf39b2_7
+  - setuptools=75.1.0=py38haa95532_0
+  - sqlite=3.50.2=hda9a48d_1
+  - ucrt=10.0.22621.0=haa95532_0
+  - vc=14.3=h2df5915_10
+  - vc14_runtime=14.44.35208=h4927774_10
+  - vs2015_runtime=14.44.35208=ha6b5a95_10
+  - wheel=0.44.0=py38haa95532_0
+  - pip:
+      - altgraph==0.17.5
+      - importlib-metadata==8.5.0
+      - packaging==25.0
+      - pefile==2024.8.26
+      - pillow==10.4.0
+      - pyinstaller==6.17.0
+      - pyinstaller-hooks-contrib==2025.11
+      - pywin32-ctypes==0.2.3
+      - tkinterdnd2==0.4.3
+      - ttkbootstrap==1.14.7
+      - zipp==3.20.2
+prefix: D:\Program\miniforge3\envs\py38basic
