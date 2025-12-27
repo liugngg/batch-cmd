@@ -27,7 +27,8 @@ class BatchProcessorApp:
         
         # 核心变量
         # 支持的文件格式
-        self.supported_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv')
+        self.video_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv')
+        self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.flac', '.wav', '.wma', '.ogg', '.ape')
         self.process_signal= ["frame=", "time=", "正在处理视频："]
         self.is_running = False
         self.current_process = None 
@@ -134,12 +135,12 @@ class BatchProcessorApp:
         preset_row = ttkb.Frame(cmd_frame)
         preset_row.pack(fill=X, pady=5)
         ttkb.Label(preset_row, text="选择预设:", bootstyle="primary").pack(side=LEFT, padx=5)
-        self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary",state="readonly")
+        self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary",state="readonly",width=30)
         self.preset_combo.pack(side=LEFT, padx=5)
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_change)
         
-        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="success-link", width=10,padding=0).pack(side=RIGHT, padx=(0,10))
-        self.preset_name_entry = ttkb.Entry(preset_row, bootstyle="primary",width=20)
+        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="warning-link", width=10,padding=0).pack(side=RIGHT, padx=(0,10))
+        self.preset_name_entry = ttkb.Entry(preset_row, bootstyle="primary",width=30)
         self.preset_name_entry.pack(side=RIGHT)
         ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=5)
 
@@ -321,6 +322,7 @@ class BatchProcessorApp:
     def add_to_list(self, *paths):
         if not paths: return
         files_input = []
+        supported_exts = list(self.video_exts).extend(list(self.audio_exts))
         for path in paths:
             # 如果路径是文件夹，则递归或直接遍历其下的文件
             if os.path.isdir(path):
@@ -328,16 +330,16 @@ class BatchProcessorApp:
                     # 递归模式
                     for root_dir, _, files in os.walk(path):
                         for f in files:
-                            if f.lower().endswith(self.supported_exts):
+                            if f.lower().endswith(supported_exts):
                                 files_input.append(os.path.join(root_dir, f))
                 else:
                     # 非递归模式，只看当前层级
                     for f in os.listdir(path):
                         full_p = os.path.join(path, f)
-                        if os.path.isfile(full_p) and f.lower().endswith(self.supported_exts):
+                        if os.path.isfile(full_p) and f.lower().endswith(supported_exts):
                             files_input.append(full_p)
             else:   # 单文件
-                if os.path.isfile(path) and path.lower().endswith(self.supported_exts):
+                if os.path.isfile(path) and path.lower().endswith(supported_exts):
                     files_input.append(path)
         
         # 检查文件列表框里是否已存在
@@ -358,21 +360,62 @@ class BatchProcessorApp:
         for file in seen:  
             info = self.get_media_info(file)
             self.tree.insert("", END, values=(os.path.basename(file), *info, file))
-
-        # # 如果输出目录为空，则设置输出目录
-        # output_dir = self.output_path_var.get()
-        # if not output_dir and seen:
-        #     # 如果没有设置输出目录，设置输出目录为第一个文件的目录
-        #     temp_path = list(seen)[0]
-        #     output_dir = os.path.dirname(temp_path) if os.path.isfile(temp_path) else temp_path
-        #     self.output_path_var.set(output_dir)
+    def add_to_list(self, *paths):
+        if not paths:
+            return
+        # 1. 修复 extend 返回 None 的 Bug，并转换为 tuple (endswith 接受 tuple 效率更高)
+        # 使用 set 去重并预处理为小写
+        supported_exts = tuple(ext.lower() for ext in (set(self.video_exts) | set(self.audio_exts)))
+        # 2. 获取当前 Treeview 中已有的路径，避免重复处理
+        # 假设路径存储在最后一列
+        existing_paths = {self.tree.item(item)['values'][-1] for item in self.tree.get_children()}
+        
+        new_files_to_add = []
+        def is_supported(filename):
+            return filename.lower().endswith(supported_exts)
+        
+        # 3. 收集新增文件
+        for path in paths:
+            if os.path.isdir(path):
+                if self.recursive_var.get():
+                    # 递归模式：使用 os.walk
+                    for root_dir, _, files in os.walk(path):
+                        for f in files:
+                            full_p = os.path.join(root_dir, f)
+                            if is_supported(f) and full_p not in existing_paths:
+                                new_files_to_add.append(full_p)
+                                existing_paths.add(full_p) # 防止本次添加中出现重复
+                else:
+                    # 非递归模式：使用 os.scandir 性能比 listdir 更好
+                    with os.scandir(path) as it:
+                        for entry in it:
+                            if entry.is_file() and is_supported(entry.name) and entry.path not in existing_paths:
+                                new_files_to_add.append(entry.path)
+                                existing_paths.add(entry.path)
+            elif os.path.isfile(path):
+                if is_supported(path) and path not in existing_paths:
+                    new_files_to_add.append(path)
+                    existing_paths.add(path)
+        # 4. 增量更新 Treeview (不要清空现有内容)
+        # 这样可以避免对旧文件重复执行耗时的 get_media_info
+        for file_path in new_files_to_add:
+            try:
+                info = self.get_media_info(file_path)
+                # 插入新行
+                self.tree.insert(
+                    "", 
+                    "end", 
+                    values=(os.path.basename(file_path), *info, file_path)
+                )
+            except Exception as e:
+                print(f"解析媒体信息失败: {file_path}, 错误: {e}")
 
     def clear_list(self):
         for item in self.tree.get_children(): self.tree.delete(item)
         self.output_path_var.set("")
 
     def add_files(self):
-        filetypes = [("多媒体文件", self.supported_exts), ("所有文件", "*.*")]
+        filetypes = [("视频文件", self.video_exts),("音频文件", self.audio_exts), ("所有文件", "*.*")]
         files = filedialog.askopenfilenames(
             title="选择多媒体文件",
             filetypes=filetypes
