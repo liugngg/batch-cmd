@@ -38,6 +38,7 @@ class BatchProcessorApp:
         self.output_path_var = ttkb.StringVar(value="")
         self.naming_rule_var = ttkb.StringVar(value="{name}_done{ext}")
         self.use_own_dir = True
+        self.pattern_pitch = re.compile(r"(?<=rubberband=pitch=)([-]?\d+)")
         
         self.setup_ui()
         self.create_context_menu()
@@ -86,7 +87,7 @@ class BatchProcessorApp:
         )
 
         columns = ("name", "size", "duration", "v_codec", "v_bitrate", "a_codec", "a_bitrate", "path")
-        self.tree = ttkb.Treeview(tree_container, columns=columns, show='headings', height=5, bootstyle="primary")
+        self.tree = ttkb.Treeview(tree_container, columns=columns, show='headings', height=4, bootstyle="primary")
         col_map = {
             "name": ("文件名", 200), "size": ("大小", 80), "duration": ("时长", 80),
             "v_codec": ("视频编码", 70), "v_bitrate": ("视频码率", 70),
@@ -169,7 +170,7 @@ class BatchProcessorApp:
 
         # 日志工具栏
         self.log_area = ttkb.ScrolledText(main_frame, height=5, state=DISABLED, font=("Consolas", 9))
-        self.log_area.pack(fill=BOTH, expand=NO, pady=0)
+        self.log_area.pack(fill=BOTH, expand=YES, pady=0)
         
         # 定义日志标签颜色
         self.log_area.tag_configure("信息", foreground="#483602")
@@ -488,11 +489,23 @@ class BatchProcessorApp:
     def start_process(self):
         items = self.tree.get_children()
         if not items or self.is_running: return
-        cmd_tpl = self.cmd_text.get("1.0", END).strip()
-        if "{input}" not in cmd_tpl or "{output}" not in cmd_tpl:
-            messagebox.showwarning("警告", "命令模版必须包含 {input} 和 {output}")
+        # 取命令窗口中的第一行
+        cmd_tpl = self.cmd_text.get("1.0", END).splitlines(False)[0].strip()
+        if "{input}" not in cmd_tpl:
+            messagebox.showwarning("警告", "命令模版必须包含 {input}")
             return
+
+        #使用 rubberband 滤镜改变音频音调时，（推荐，音质最好）
+        # 将半音数转换为倍率：2^(n/12)  其中 n 为半音数
+        def chang_pitch(match):
+            try:
+                input = int(match.group(1))
+                return "{:.4f}".format(2**(input/12))
+            except ValueError:
+                return match.group(1) 
         
+        cmd_tpl = re.sub(self.pattern_pitch, chang_pitch, cmd_tpl)
+
         self.is_running = True
         self.start_btn.configure(text="⏹️ 终止任务", command=self.stop_process, bootstyle="danger", width=12)
         threading.Thread(target=self.run_worker, args=(cmd_tpl,), daemon=True).start()
