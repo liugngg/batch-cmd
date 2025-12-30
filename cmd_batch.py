@@ -36,9 +36,9 @@ class BatchProcessorApp:
         self.shutdown_var = ttkb.BooleanVar(value=False)
         self.overwrite_var = ttkb.StringVar(value="skip") 
         self.output_path_var = ttkb.StringVar(value="")
-        self.naming_rule_var = ttkb.StringVar(value="{name}_done{ext}")
         self.use_own_dir = True
         self.pattern_pitch = re.compile(r"(?<=rubberband=pitch=)([-]?\d+)")
+        self.pattern_name = re.compile(r'[\S]*?\{name\}[\S]*')
         
         self.setup_ui()
         self.create_context_menu()
@@ -53,12 +53,12 @@ class BatchProcessorApp:
         style = ttkb.Style()
 
         # --- 1. 顶部标签页 (输入/输出设置) ---
-        self.notebook = ttkb.Notebook(main_frame, style="secondary")
-        self.notebook.pack(fill=BOTH, expand=YES, pady=5)
+        self.input_output = ttkb.LabelFrame(main_frame, text="输入输出设置", style="info")
+        self.input_output.pack(fill=BOTH, expand=YES, pady=5)
 
         # 标签页 1: 输入设置
-        input_tab = ttkb.Frame(self.notebook, padding=10)
-        self.notebook.add(input_tab, text="输入设置")
+        input_tab = ttkb.Frame(self.input_output, padding=10)
+        input_tab.pack(fill=BOTH, expand=YES)
         
         in_btn_frame = ttkb.Frame(input_tab)
         in_btn_frame.pack(fill=X, pady=(0, 10))
@@ -110,28 +110,19 @@ class BatchProcessorApp:
         tree_container.grid_columnconfigure(0, weight=1)
         tree_container.grid_rowconfigure(0, weight=1)
 
+        output_tab = ttkb.Frame(self.input_output, padding=5)
+        output_tab.pack(fill=X, expand=YES)
+        # ttkb.Label(output_tab, text="输出目录:",bootstyle="primary").pack(side=LEFT)
+        ttkb.Button(output_tab, text="🔍 输出目录：", command=self.browse_output, bootstyle="primary-link").pack(side=LEFT,padx=0)
+        ttkb.Entry(output_tab, textvariable=self.output_path_var,bootstyle="light", state="readonly").pack(side=LEFT, fill=X, expand=YES, padx=(5,40))        
 
-        # 标签页 2: 输出设置
-        output_tab = ttkb.Frame(self.notebook, padding=10)
-        self.notebook.add(output_tab, text="输出设置")
+        ttkb.Radiobutton(output_tab, text="强制覆盖", variable=self.overwrite_var, bootstyle="info", value="overwrite").pack(side=RIGHT, padx=5)
+        ttkb.Radiobutton(output_tab, text="跳过", variable=self.overwrite_var, bootstyle="info",value="skip").pack(side=RIGHT, padx=5)
+        ttkb.Label(output_tab, text="同名处理:").pack(side=RIGHT, padx=(5,5))
 
-        ttkb.Label(output_tab, text="输出目录:").grid(row=0, column=0, sticky=W, pady=5)
-        ttkb.Entry(output_tab, textvariable=self.output_path_var, width=60,state="readonly").grid(row=0, column=1, sticky=EW, padx=5)
-        ttkb.Button(output_tab, text="🔍 浏览", command=self.browse_output, bootstyle="warning-outline", width=12).grid(row=0, column=2,padx=(10,0))
-
-        ttkb.Label(output_tab, text="命名规则:").grid(row=1, column=0, sticky=W, pady=15)
-        ttkb.Entry(output_tab, textvariable=self.naming_rule_var).grid(row=1, column=1, sticky=EW, padx=5)
-        ttkb.Label(output_tab, text="{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).grid(row=1, column=2)
-
-        ttkb.Label(output_tab, text="同名处理:").grid(row=2, column=0, sticky=W)
-        conflict_f = ttkb.Frame(output_tab)
-        conflict_f.grid(row=2, column=1, sticky=W)
-        ttkb.Radiobutton(conflict_f, text="跳过现有文件", variable=self.overwrite_var, bootstyle="info",value="skip").pack(side=LEFT, padx=5)
-        ttkb.Radiobutton(conflict_f, text="强制覆盖", variable=self.overwrite_var, bootstyle="info", value="overwrite").pack(side=LEFT, padx=5)
-        output_tab.columnconfigure(1, weight=1)
 
         # --- 2. 命令编辑区 (常驻) ---
-        cmd_frame = ttkb.LabelFrame(main_frame, text="执行命令",padding=5)
+        cmd_frame = ttkb.LabelFrame(main_frame, text="执行命令",bootstyle="warning",padding=5)
         cmd_frame.pack(fill=X, pady=10)
 
         preset_row = ttkb.Frame(cmd_frame)
@@ -151,7 +142,8 @@ class BatchProcessorApp:
         self.cmd_text = ttkb.Text(cmd_frame, height=4, font=("Consolas", 11))
         self.cmd_text.configure(foreground="blue")
         self.cmd_text.pack(fill=X, pady=5)
-        self.cmd_text.insert(END, "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {output}")
+        self.cmd_text.insert(END, "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {name}_done.mp4")
+        ttkb.Label(cmd_frame, text="输入文件名：{input}；      输出文件名：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(fill=X, padx=(5,5))
 
 
         button_f = ttkb.Frame(main_frame)
@@ -162,7 +154,7 @@ class BatchProcessorApp:
         self.stop_btn = ttkb.Button(button_f, text="⏹️ 终止任务", command=self.stop_process, bootstyle=DANGER, width=12, state=DISABLED)
         # self.stop_btn.pack(side=RIGHT, padx=5)
         
-        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="warning-link")
+        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="primary-link")
         self.open_output.pack(side=RIGHT, padx=5)
 
         ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, style="MyColor.TCheckbutton", width=15).pack(side=RIGHT, padx=(5,5))
@@ -173,12 +165,11 @@ class BatchProcessorApp:
         self.log_area.pack(fill=BOTH, expand=YES, pady=0)
         
         # 定义日志标签颜色
-        self.log_area.tag_configure("信息", foreground="#483602")
+        self.log_area.tag_configure("信息", foreground="#8f0a74")
         self.log_area.tag_configure("进展", foreground="#6b0693")
         self.log_area.tag_configure("结果", foreground="#059803")
         self.log_area.tag_configure("错误", foreground="#e74c3c")
-        self.log_area.tag_configure("命令", foreground="#065f9a")
-        self.log_area.tag_configure("time", foreground="#8f0a74")
+        self.log_area.tag_configure("命令", foreground="#043E64")
 
         # 底部进度条及状态
         status_f = ttkb.Frame(main_frame)
@@ -205,7 +196,7 @@ class BatchProcessorApp:
             os.makedirs(out_dir)
         log_file = os.path.join(out_dir, f"batch_cmd.log")
     
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")      
+        timestamp = datetime.now().strftime("%m-%d %H:%M:%S")      
         try:
             if first_time:
                 with open(log_file, "w", encoding="utf-8") as f:
@@ -255,20 +246,14 @@ class BatchProcessorApp:
             # 如果上一行也是进度，删除最后一行 (从倒数第二字符开始所在的行首，到结尾)
             self.log_area.delete("end-2c linestart", "end-1c")
         
-        # timestamp = datetime.now().strftime("[%H:%M:%S] ")
+        timestamp = datetime.now().strftime("%m-%d %H:%M:%S")   
         
         # 插入新内容
         if is_progress_line:
-            # 进度行不强制换行，但为了 delete 逻辑，末尾加 \n
-            # self.log_area.insert(END, timestamp, "time")
-            self.log_area.insert(END, f"[{level}] ", "time")
-            self.log_area.insert(END, f"{message.strip()}\n", "进展")
+            self.log_area.insert(END, f"[{timestamp}] {message.strip()}\n", "进展")
             self.last_log_is_progress = True
         else:
-            # 普通日志：换行显示
-            # self.log_area.insert(END, timestamp, "time")
-            self.log_area.insert(END, f"[{level}] ", "time")
-            self.log_area.insert(END, f"{message.strip()}\n", level)
+            self.log_area.insert(END, f"[{timestamp}] {message.strip()}\n", level)
             # 保存日志到文件
             if level != "命令":
                 self.save_log(message.strip())
@@ -520,6 +505,9 @@ class BatchProcessorApp:
             output_dir = os.path.dirname(files_list[0])
             self.output_path_var.set(output_dir)
 
+        # 获取输出名称模板
+        search_name = re.findall(self.pattern_name, cmd_tpl)
+
         # 清空log文件
         self.save_log("批处理任务开始",first_time=True)
         self.root.after(0, self.log, f"启动命令：\n {cmd_tpl}", "信息")
@@ -540,7 +528,10 @@ class BatchProcessorApp:
             
             fname = os.path.basename(in_path)
             name_only, ext = os.path.splitext(fname)
-            out_fname = self.naming_rule_var.get().replace("{name}", name_only).replace("{ext}", ext)
+            if search_name: 
+                out_fname = search_name[0].replace("{name}", name_only).replace("{ext}", ext)
+            else:
+                out_fname = f"{name_only}_done{ext}"
 
             if self.use_own_dir:
                 out_dir = os.path.dirname(in_path)
@@ -553,11 +544,12 @@ class BatchProcessorApp:
                 self.update_status(i + 1, files_total)
                 continue
 
-            final_cmd = cmd_tpl.replace("{input}", f'"{in_path}"').replace("{output}", f'"{full_out}"')
+            final_cmd = cmd_tpl.replace("{input}", f'"{in_path}"')
+            final_cmd = re.sub(self.pattern_name, lambda m :f'"{full_out}"', final_cmd)
 
             # 1. 记录开始时间
             start_time = datetime.now()
-            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务启动: 【{fname}】at {start_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
+            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务启动: \n{final_cmd}", "信息")
 
             try:
                 self.current_process = subprocess.Popen(
@@ -568,26 +560,25 @@ class BatchProcessorApp:
                 for line in iter(self.current_process.stdout.readline, ''):
                     if not self.is_running: break
                     if line.strip():
-                        lvl = "错误" if "Error" in line or "Failed" in line else "命令"
+                        lvl = "错误" if "error" in line.lower() or "failed" in line.lower() else "命令"
                         self.root.after(0, self.log, f" {line.strip()}", lvl)
                 
                 self.current_process.wait()
                 if not self.is_running: break
                 
                 if self.current_process.returncode == 0:
-                    self.root.after(0, self.log, f"第{i+1}个任务成功输出：【{full_out}】", "信息")
+                    self.root.after(0, self.log, f"第{i+1}/{files_total}个任务成功输出：【{full_out}】", "信息")
                     processed_count += 1
                 else:
-                    self.root.after(0, self.log, f"第{i+1}个任务处理失败: 【{fname}】", "错误")
+                    self.root.after(0, self.log, f"第{i+1}/{files_total}个任务处理失败: 【{fname}】", "错误")
                     failed_count += 1
             except Exception as e:
-                self.root.after(0, self.log, f"第{i+1}个任务系统错误: {str(e)}", "错误")
+                self.root.after(0, self.log, f"第{i+1}/{files_total}个任务系统错误: {str(e)}", "错误")
                 failed_count += 1
             
             # 2. 记录结束时间
             end_time = datetime.now()
-            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务结束 at {end_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
-    
+            # self.root.after(0, self.log, f"第{i+1}/{files_total}个任务结束 at {end_time.strftime('%Y-%m-%d %H:%M:%S')}", "信息")
     
             # 3. 计算时间差
             duration = end_time - start_time
@@ -598,7 +589,7 @@ class BatchProcessorApp:
             total_seconds = int(duration.total_seconds())
             hours, remainder = divmod(total_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            self.root.after(0, self.log, f"第{i+1}个任务耗时：{hours} 小时 {minutes} 分钟 {seconds} 秒", "信息")
+            self.root.after(0, self.log, f"第{i+1}/{files_total}个任务耗时：{hours} 小时 {minutes} 分钟 {seconds} 秒", "信息")
             self.root.after(0, self.log, "-------------------------------------", "信息")
             self.update_status(i + 1, files_total)
 
