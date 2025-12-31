@@ -29,7 +29,7 @@ class BatchProcessorApp:
         # 支持的文件格式
         self.video_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv')
         self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.flac', '.wav', '.wma', '.ogg', '.ape')
-        self.process_signal= ["frame=", "time=", "正在处理视频："]
+        self.process_signal= ["frame=", "time=", "speed=", "正在处理视频："]
         self.is_running = False
         self.current_process = None 
         self.recursive_var = ttkb.BooleanVar(value=False)
@@ -61,7 +61,7 @@ class BatchProcessorApp:
         input_tab.pack(fill=BOTH, expand=YES)
         
         in_btn_frame = ttkb.Frame(input_tab)
-        in_btn_frame.pack(fill=X, pady=(0, 10))
+        in_btn_frame.pack(fill=X, pady=(0, 5))
         ttkb.Button(in_btn_frame, text="🎬 添加文件", command=self.add_files, bootstyle="primary-link").pack(side=LEFT, padx=5)
         ttkb.Button(in_btn_frame, text="📂 添加文件夹", command=self.add_folder, bootstyle="warning-link").pack(side=LEFT, padx=5)
         style.configure("MyColor.TCheckbutton", foreground="seagreen")
@@ -122,7 +122,7 @@ class BatchProcessorApp:
 
 
         # --- 2. 命令编辑区 (常驻) ---
-        cmd_frame = ttkb.LabelFrame(main_frame, text="执行命令",bootstyle="warning",padding=5)
+        cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令",bootstyle="warning",padding=5)
         cmd_frame.pack(fill=X, pady=10)
 
         preset_row = ttkb.Frame(cmd_frame)
@@ -141,9 +141,9 @@ class BatchProcessorApp:
 
         self.cmd_text = ttkb.Text(cmd_frame, height=4, font=("Consolas", 11))
         self.cmd_text.configure(foreground="blue")
-        self.cmd_text.pack(fill=X, pady=5)
+        self.cmd_text.pack(fill=X,pady=5)
         self.cmd_text.insert(END, "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {name}_done.mp4")
-        ttkb.Label(cmd_frame, text="输入文件名：{input}；      输出文件名：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(fill=X, padx=(5,5))
+        ttkb.Label(cmd_frame, text="输入文件名：{input}；      输出文件名：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(side=LEFT, padx=(5,5))
 
 
         button_f = ttkb.Frame(main_frame)
@@ -166,7 +166,7 @@ class BatchProcessorApp:
         
         # 定义日志标签颜色
         self.log_area.tag_configure("信息", foreground="#8f0a74")
-        self.log_area.tag_configure("进展", foreground="#6b0693")
+        self.log_area.tag_configure("进展", foreground="#059803")
         self.log_area.tag_configure("结果", foreground="#059803")
         self.log_area.tag_configure("错误", foreground="#e74c3c")
         self.log_area.tag_configure("命令", foreground="#043E64")
