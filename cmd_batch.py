@@ -32,6 +32,7 @@ class BatchProcessorApp:
         self.process_signal= ["frame=", "time=", "speed=", "正在处理视频："]
         self.is_running = False
         self.current_process = None 
+        self.new_console_var = ttkb.BooleanVar(value=True)
         self.recursive_var = ttkb.BooleanVar(value=False)
         self.shutdown_var = ttkb.BooleanVar(value=False)
         self.overwrite_var = ttkb.StringVar(value="skip") 
@@ -53,7 +54,7 @@ class BatchProcessorApp:
         style = ttkb.Style()
 
         # --- 1. 顶部标签页 (输入/输出设置) ---
-        self.input_output = ttkb.LabelFrame(main_frame, text="输入输出设置", style="info")
+        self.input_output = ttkb.LabelFrame(main_frame, text="输入输出设置")
         self.input_output.pack(fill=BOTH, expand=YES, pady=5)
 
         # 标签页 1: 输入设置
@@ -71,6 +72,13 @@ class BatchProcessorApp:
         # 文件列表框：
         tree_container = ttkb.Frame(input_tab)
         tree_container.pack(fill=BOTH, expand=YES)
+
+
+        style.configure(
+            "TLabelframe.Label",
+            font=("Microsoft YaHei", 11),     # 设置字体和大小
+            foreground="brown"                             # 重要：根据字体大小调整行高
+        )
 
         # 2. 配置 Treeview 的字体（表格内部内容）
         # 注意：'Treeview' 是组件的样式名
@@ -122,7 +130,8 @@ class BatchProcessorApp:
 
 
         # --- 2. 命令编辑区 (常驻) ---
-        cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令",bootstyle="warning",padding=5)
+        # cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令",bootstyle="warning",padding=5)
+        cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令", bootstyle="success", padding=5)
         cmd_frame.pack(fill=X, pady=10)
 
         preset_row = ttkb.Frame(cmd_frame)
@@ -145,20 +154,19 @@ class BatchProcessorApp:
         self.cmd_text.insert(END, "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a copy {name}_done.mp4")
         ttkb.Label(cmd_frame, text="输入文件名：{input}；      输出文件名：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(side=LEFT, padx=(5,5))
 
-
+        # 运行按钮排
         button_f = ttkb.Frame(main_frame)
         button_f.pack(fill=X, pady=5)
+
+        ttkb.Button(button_f, text="🗑清空日志", command=self.clear_logs, bootstyle="warning-link").pack(side=LEFT)
+        ttkb.Checkbutton(button_f, text="新输出窗口", variable=self.new_console_var, style="MyColor.TCheckbutton").pack(side=LEFT, padx=(40,10))
+        ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, style="MyColor.TCheckbutton").pack(side=LEFT, padx=10)  
+        
         self.start_btn = ttkb.Button(button_f, text="💪 开始批处理", command=self.start_process, bootstyle=SUCCESS, width=15, padding=3)
         self.start_btn.pack(side=RIGHT, padx=(5,15))
+        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="primary-link", width=15)
+        self.open_output.pack(side=RIGHT, padx=5) 
 
-        self.stop_btn = ttkb.Button(button_f, text="⏹️ 终止任务", command=self.stop_process, bootstyle=DANGER, width=12, state=DISABLED)
-        # self.stop_btn.pack(side=RIGHT, padx=5)
-        
-        self.open_output = ttkb.Button(button_f, text="📂 打开输出目录", command=self.open_output_folder, bootstyle="primary-link")
-        self.open_output.pack(side=RIGHT, padx=5)
-
-        ttkb.Checkbutton(button_f, text="完成后关机", variable=self.shutdown_var, style="MyColor.TCheckbutton", width=15).pack(side=RIGHT, padx=(5,5))
-        ttkb.Button(button_f, text="🗑清空日志", command=self.clear_logs, bootstyle="warning-link").pack(side=LEFT)
 
         # 日志工具栏
         self.log_area = ttkb.ScrolledText(main_frame, height=5, state=DISABLED, font=("Consolas", 9))
@@ -552,17 +560,23 @@ class BatchProcessorApp:
             self.root.after(0, self.log, f"第{i+1}/{files_total}个任务启动: \n{final_cmd}", "信息")
 
             try:
-                self.current_process = subprocess.Popen(
-                    final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding='gbk', errors='replace'
-                )
-                
-                for line in iter(self.current_process.stdout.readline, ''):
-                    if not self.is_running: break
-                    if line.strip():
-                        lvl = "错误" if "error" in line.lower() or "failed" in line.lower() else "命令"
-                        self.root.after(0, self.log, f" {line.strip()}", lvl)
-                
+                if self.new_console_var.get():
+                    self.current_process = subprocess.Popen(
+                        final_cmd,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE
+                    )
+                else:
+                    self.current_process = subprocess.Popen(
+                        final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, encoding='gbk', errors='replace'
+                    )
+                    
+                    for line in iter(self.current_process.stdout.readline, ''):
+                        if not self.is_running: break
+                        if line.strip():
+                            lvl = "错误" if "error" in line.lower() or "failed" in line.lower() else "命令"
+                            self.root.after(0, self.log, f" {line.strip()}", lvl)
+
                 self.current_process.wait()
                 if not self.is_running: break
                 
