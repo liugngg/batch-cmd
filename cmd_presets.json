@@ -1,5 +1,5 @@
 {
-    "高质量视频转码：cq=16": "ffmpeg -i {input} -c:v hevc_nvenc -preset p4 -cq 16 -c:a  -y copy {name}_done.mp4",
+    "高质量GPU转码：cq=16": "ffmpeg -i {input} -c:v hevc_nvenc -preset p5 -rc vbr_hq -cq 16 -spatial_aq 1 -temporal_aq 1 -rc-lookahead 20 -c:a copy -y {name}_done.mp4",
     "lada修复视频：crf=21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model-path \"D:\\Programs\\lada\\_internal\\model_weights\\lada_mosaic_detection_model_v3.1_accurate.pt\" --max-clip-length 360 --custom-encoder-options \"rc vbr_hq -cq 21 \" --output {name}-La.mp4",
     "从视频提取音频": "ffmpeg -i {input} -vn -c copy  -y {name}.mka",
     "歌曲降调 (aac)：-3": "ffmpeg -i {input} -af \"rubberband=pitch=-3\" -c:a aac -b:a 192k -y {name}_down3.aac\n\n注意：pitch 参数接受的是倍率（比例），而不是半音数（Semitones）。\n程序内部已进行了转换，输入半音数即可（降调为负，升调为正）。\n倍率转换公式：2^(n/12) ，其中n为半音数\n其中  n 是你想改变的半音数",
