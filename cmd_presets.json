@@ -1,11 +1,16 @@
 {
-    "高质量GPU转码：cq=16": "ffmpeg -i {input} -c:v hevc_nvenc -preset p5 -rc vbr_hq -cq 16 -spatial_aq 1 -temporal_aq 1 -rc-lookahead 20 -c:a copy -y {name}_done.mp4",
-    "lada修复视频：crf=21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model-path \"D:\\Programs\\lada\\_internal\\model_weights\\lada_mosaic_detection_model_v3.1_accurate.pt\" --max-clip-length 360 --custom-encoder-options \"rc vbr_hq -cq 21 \" --output {name}-La.mp4",
+    "高质量GPU转码：cq=16": "ffmpeg -i {input} -c:v libx265 -preset medium -cq 16 -c:a copy -y {name}_done.mp4\n\n-preset:可选 ultrafast, superfast, veryfast, faster, fast, medium (默认), slow, slower, veryslow",
+    "高质量CPU转码_h265_cq16": "ffmpeg -i {input} -c:v libx265 -preset medium -cq 16 -c:a copy -y {name}_done.mp4",
+    "lada-CPU：crf=16": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 360 --encoder libx265 --encoder-options \"-crf 16 -preset medium\" --output {name}-La.mp4",
+    "lada-GPU：crf=21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 360 --encoder hevc_nvenc --encoder-options \"rc vbr_hq -cq 21\" --output {name}-La.mp4",
+    "将视频转换为1080P（CPU_CRF_16）": "ffmpeg -i {input} -vf scale=1920:1080 -c:v libx265 -crf 16 -preset medium -c:a copy {name}_done{ext}\n -vf \"scale=1920:-1\" 宽度自适应高度",
     "从视频提取音频": "ffmpeg -i {input} -vn -c copy  -y {name}.mka",
+    "提取蓝光电影的音频": "ffmpeg -i \"F:\\BDMV\\STREAM\\00013.m2ts\" -map 0:a:0 -vn -c:a copy \"d:\\output.mkv\"",
     "歌曲降调 (aac)：-3": "ffmpeg -i {input} -af \"rubberband=pitch=-3\" -c:a aac -b:a 192k -y {name}_down3.aac\n\n注意：pitch 参数接受的是倍率（比例），而不是半音数（Semitones）。\n程序内部已进行了转换，输入半音数即可（降调为负，升调为正）。\n倍率转换公式：2^(n/12) ，其中n为半音数\n其中  n 是你想改变的半音数",
     "歌曲降调 (mp3)：-3": "ffmpeg -i {input} -af \"rubberband=pitch=-3\" -c:a libmp3lame -b:a 192k -y {name}_down3.mp3\n\n注意：pitch 参数接受的是倍率（比例），而不是半音数（Semitones）。\n程序内部已进行了转换，输入半音数即可（降调为负，升调为正）。\n倍率转换公式：2^(n/12) ，其中n为半音数\n其中  n 是你想改变的半音数",
-    "上下格式3D影片转为左右格式SBS": "ffmpeg -i {input} -vf \"stereo3d=abl:sbsl,scale=1920x1080\"  -aspect 16:9 -c:a copy -y {name}_SBS.mp4",
-    "cpu_h265_cq16": "ffmpeg -i {input} -c:v libx265 -preset fast -cq 16 -c:a copy -y {name}_done.mp4",
-    "lada-CPU：crf=16": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 400 --encoder libx265 --encoder-options \"-crf 16 -preset fast\" --output {name}-La.mp4",
-    "lada-GPU：crf=21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 400 --encoder hevc_nvenc --encoder-options \"rc vbr_hq -cq 21\" --output {name}-La.mp4"
+    "视频向右旋转90度（不重新编码）": "ffmpeg -i {input} -c copy -metadata:s:v:0 rotate=90 {name}_90{ext}",
+    "视频向左旋转90度（不重新编码）": "ffmpeg -i {input} -c copy -metadata:s:v:0 rotate=270 {name}_270{ext}",
+    "视频向右旋转90度（重新GPU编码）": "ffmpeg -i {input}  -vf \"transpose=1\" -c:v hevc_nvenc -preset p5 -rc vbr_hq -cq 16 -spatial_aq 1 -temporal_aq 1 -rc-lookahead 20 -c:a copy -y {name}_rotate.mp4\ntranspose=1\t顺时针旋转90度，\t向右旋转90度\ntranspose=2\t逆时针旋转90度， 向左旋转90度(同顺时针270度)",
+    "视频向左旋转90度（重新CPU编码）": "ffmpeg -i {input}  -vf \"transpose=2\" -c:v libx265 -preset fast -cq 16 -c:a copy -y {name}_rotate.mp4\ntranspose=1\t顺时针旋转90度，\t向右旋转90度\ntranspose=2\t逆时针旋转90度， 向左旋转90度(同顺时针270度)",
+    "上下格式3D影片转为左右格式SBS": "ffmpeg -i {input} -vf \"stereo3d=abl:sbsl,scale=1920x1080\"  -aspect 16:9 -c:a copy -y {name}_SBS.mp4"
 }

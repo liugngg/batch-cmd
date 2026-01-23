@@ -24,7 +24,7 @@ class BatchProcessorApp:
         default_font.configure(family="Microsoft YaHei", size=10, weight="normal")
         
         # 核心变量
-        self.video_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv')
+        self.video_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv', '.m2ts')
         self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.flac', '.wav', '.wma', '.ogg', '.ape')
         self.process_signal = ["frame=", "time=", "speed=", "正在处理视频："]
         
@@ -40,6 +40,8 @@ class BatchProcessorApp:
 
         self.pattern_pitch = re.compile(r"(?<=rubberband=pitch=)([-]?\d+)")
         self.pattern_name = re.compile(r'[\S]*?\{name\}[\S]*')
+        self.pattern_input = re.compile(r'-i\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
+        self.pattern_output = re.compile(r'(?:"([^"]+)"|\'([^\']+)\'|(\S+))\s*$')
         
         self.setup_ui()
         self.create_context_menu()
@@ -121,10 +123,10 @@ class BatchProcessorApp:
         self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary", state="readonly", width=25)
         self.preset_combo.pack(side=LEFT, padx=(5,0))
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_change)
-        ttkb.Button(preset_row, text="⚒️ 编 辑", command=self.edit_preset, bootstyle="dark-link", width=10).pack(side=LEFT, padx=(0,10))
+        ttkb.Button(preset_row, text="⚒️ 编 辑", command=self.edit_preset, bootstyle="dark-link").pack(side=LEFT, padx=(0,10))
         
-        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="warning-link", width=10).pack(side=RIGHT, padx=(0,5))
-        self.preset_name_entry = ttkb.Entry(preset_row, bootstyle="primary", width=30)
+        ttkb.Button(preset_row, text="💾 保 存", command=self.save_preset, bootstyle="warning-link").pack(side=RIGHT, padx=(0,5))
+        self.preset_name_entry = ttkb.Entry(preset_row, bootstyle="primary", width=25)
         self.preset_name_entry.pack(side=RIGHT)
         ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=0)
 
@@ -225,14 +227,24 @@ class BatchProcessorApp:
         if self.is_running:
             self.stop_all_tasks("batch")
             return
-            
-        if not self.tree.get_children():
-            messagebox.showwarning("警告", "文件列表为空！")
-            return
-            
+        
         cmd_tpl = self.cmd_text.get("1.0", END).splitlines(False)[0].strip()
+        # windows 环境下，CMD 不把单引号当作路径包裹符，需要替换为双引号：
+        cmd_tpl = cmd_tpl.replace("'", '"')
+        # 如果文件路径中不包含{input}，则从命令行中获取输入文件路径
         if "{input}" not in cmd_tpl:
-            messagebox.showwarning("警告", "命令模版必须包含 {input}")
+            match = re.search(self.pattern_input, cmd_tpl)
+            if match:
+                input_path = match.group(1) or match.group(2) or match.group(3)
+                input_path = os.path.abspath(input_path.strip())
+                if os.path.exists(input_path):
+                    # 由于没有使用{input}，则清空列表：
+                    for item in self.tree.get_children(): self.tree.delete(item)
+                    self.output_path_var.set("默认使用输入文件所在目录")
+                    self.add_to_list(input_path)
+
+        if not self.tree.get_children():
+            messagebox.showwarning("警告", "输入文件列表为空！\n请先添加文件或从命令行中输入")
             return
             
         self.is_running = True
@@ -260,15 +272,32 @@ class BatchProcessorApp:
             in_path = self.tree.item(item)['values'][-1]
             fname = os.path.basename(in_path)
             name_only, ext = os.path.splitext(fname)
-            
-            # 解析输出名
-            search_name = re.findall(self.pattern_name, cmd_tpl)
-            out_fname = search_name[0].replace("{name}", name_only).replace("{ext}", ext) if search_name else f"{name_only}_done{ext}"
+            # 确定输入路径
+            final_cmd = cmd_tpl.replace("{input}", f'"{in_path}"')
 
             # 确定输出路径
             out_dir = os.path.dirname(in_path) if output_dir_base == "默认使用输入文件所在目录" else output_dir_base
+            full_out = os.path.join(out_dir, f"{name_only}_done{ext}")
+            
+            # 解析输出名
+            search_name = re.findall(self.pattern_name, cmd_tpl)
+            # 如何命令行中存在输出模板{name}
+            if search_name:
+                out_fname = search_name[0].replace("{name}", name_only).replace("{ext}", ext)
+                full_out = os.path.join(out_dir, out_fname)
+                final_cmd = re.sub(self.pattern_name, lambda m :f'"{full_out}"', final_cmd)
+            else:    # 使用命令行中指定的输出名称
+                match = re.search(self.pattern_output, cmd_tpl)
+                if match:
+                    out = match.group(1) or match.group(2) or match.group(3)
+                    out = out.strip()
+                    if os.path.dirname(out):
+                        out_dir = os.path.dirname(out)
+                    full_out = os.path.join(out_dir, os.path.basename(out))
+                    final_cmd = final_cmd.replace(out, f'{full_out}')
+                    
+
             if not os.path.exists(out_dir): os.makedirs(out_dir)
-            full_out = os.path.join(out_dir, out_fname)
             # self.root.after(0, self.log, f"输出文件名：\n{full_out}", "信息")
 
             if os.path.exists(full_out) and self.overwrite_var.get() == "skip":
@@ -276,9 +305,6 @@ class BatchProcessorApp:
                 skip_count += 1
                 self.root.after(0, self.update_status, i+1, files_total)
                 continue
-
-            final_cmd = cmd_tpl.replace("{input}", f'"{in_path}"')
-            final_cmd = re.sub(self.pattern_name, lambda m :f'"{full_out}"', final_cmd)
 
             start_time = datetime.now()
             self.root.after(0, self.log, f"第{i+1}/{files_total}个启动: {fname}", "信息")
