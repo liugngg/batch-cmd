@@ -1,4 +1,5 @@
 import os
+import shutil
 import json
 import time
 import subprocess
@@ -266,6 +267,10 @@ class BatchProcessorApp:
         total_processing_time = timedelta(0)
         output_dir_base = self.output_path_var.get()
 
+        # 切换当前工作路径（cwd）到命令所在目录
+        cwd_path = os.path.dirname(shutil.which(cmd_tpl.split()[0]))
+        self.root.after(0, self.log, f"命令文件路径: {cwd_path}", "信息")
+
         for i, item in enumerate(items):
             if not self.is_running: break # 检查停止信号
             
@@ -315,12 +320,12 @@ class BatchProcessorApp:
                 if self.new_console_var.get():
                     # 新窗口模式：无法捕获输出，只能等待
                     self.root.after(0, self.log, f"执行命令：\n{final_cmd}", "信息")
-                    self.current_process = subprocess.Popen(final_cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                    self.current_process = subprocess.Popen(final_cmd, creationflags=subprocess.CREATE_NEW_CONSOLE, cwd=cwd_path)
                     while self.is_running and self.current_process.poll() is None: time.sleep(1)
                 else:
                     # 捕获输出模式
                     self.current_process = subprocess.Popen(
-                        final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd_path,
                         text=True, encoding='gbk', errors='replace'
                     )
                     while self.is_running:

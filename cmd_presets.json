@@ -1,5 +1,5 @@
 {
-    "高质量GPU转码：cq=16": "ffmpeg -i {input} -c:v libx265 -preset medium -cq 16 -c:a copy -y {name}_done.mp4\n\n-preset:可选 ultrafast, superfast, veryfast, faster, fast, medium (默认), slow, slower, veryslow",
+    "高质量GPU转码：cq=16": "ffmpeg -i {input} -c:v hevc_nvenc -preset p5 -rc vbr_hq -cq 16 -spatial_aq 1 -temporal_aq 1 -rc-lookahead 20 -c:a copy -y {name}_done.mp4\n\n-preset:可选 ultrafast, superfast, veryfast, faster, fast, medium (默认), slow, slower, veryslow",
     "高质量CPU转码_h265_cq16": "ffmpeg -i {input} -c:v libx265 -preset medium -cq 16 -c:a copy -y {name}_done.mp4",
     "lada-CPU：crf=16": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 360 --encoder libx265 --encoder-options \"-crf 16 -preset medium\" --output {name}-La.mp4",
     "lada-GPU：crf=21": "lada-cli --input {input} --device cuda:0 --mosaic-restoration-model basicvsrpp-v1.2 --mosaic-detection-model v4-fast --max-clip-length 360 --encoder hevc_nvenc --encoder-options \"rc vbr_hq -cq 21\" --output {name}-La.mp4",
@@ -12,5 +12,6 @@
     "视频向左旋转90度（不重新编码）": "ffmpeg -i {input} -c copy -metadata:s:v:0 rotate=270 {name}_270{ext}",
     "视频向右旋转90度（重新GPU编码）": "ffmpeg -i {input}  -vf \"transpose=1\" -c:v hevc_nvenc -preset p5 -rc vbr_hq -cq 16 -spatial_aq 1 -temporal_aq 1 -rc-lookahead 20 -c:a copy -y {name}_rotate.mp4\ntranspose=1\t顺时针旋转90度，\t向右旋转90度\ntranspose=2\t逆时针旋转90度， 向左旋转90度(同顺时针270度)",
     "视频向左旋转90度（重新CPU编码）": "ffmpeg -i {input}  -vf \"transpose=2\" -c:v libx265 -preset fast -cq 16 -c:a copy -y {name}_rotate.mp4\ntranspose=1\t顺时针旋转90度，\t向右旋转90度\ntranspose=2\t逆时针旋转90度， 向左旋转90度(同顺时针270度)",
-    "上下格式3D影片转为左右格式SBS": "ffmpeg -i {input} -vf \"stereo3d=abl:sbsl,scale=1920x1080\"  -aspect 16:9 -c:a copy -y {name}_SBS.mp4"
+    "上下格式3D影片转为左右格式SBS": "ffmpeg -i {input} -vf \"stereo3d=abl:sbsl,scale=1920x1080\"  -aspect 16:9 -c:a copy -y {name}_SBS.mp4",
+    "jasna 修复视频": "jasna --input {input} --output {name}_jasna{ext}"
 }
