@@ -1,0 +1,11 @@
+[project]
+name = "batch-cmd"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "nuitka<3",
+    "tkinterdnd2>=0.4.3",
+    "ttkbootstrap>=1.17.0",
+]
