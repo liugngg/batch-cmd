@@ -25,8 +25,8 @@ class BatchProcessorApp:
         default_font.configure(family="Microsoft YaHei", size=10, weight="normal")
         
         # 核心变量
-        self.video_exts = ('.mp4', '.mkv', '.avi', '.mpeg', '.mpg', '.wmv', '.m2ts')
-        self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.flac', '.wav', '.wma', '.ogg', '.ape')
+        self.video_exts = ('.mp4', '.mkv', '.mov', '.avi', '.mpeg', '.mpg', '.wmv', '.m2ts', '.webm', '.flv')
+        self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.m4a', '.flac', '.wav', '.wma', '.ogg', '.ape')
         self.process_signal = ["frame=", "time=", "speed=", "正在处理视频："]
         
         self.is_running = False
