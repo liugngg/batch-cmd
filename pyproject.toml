@@ -1,11 +1,10 @@
 [project]
 name = "batch-cmd"
 version = "0.1.0"
-description = "Add your description here"
+description = "批处理工具--liug"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "nuitka<3",
-    "tkinterdnd2>=0.4.3",
-    "ttkbootstrap>=1.17.0",
+    "tkinterdnd2",
+    "ttkbootstrap",
 ]

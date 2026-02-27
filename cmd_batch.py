@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from tkinter import filedialog, messagebox, Menu, font
 import ttkbootstrap as ttkb
 from ttkbootstrap.constants import *
+# 【修复点1】改为使用标准库的 ScrolledText，避免属性代理报错
+from tkinter.scrolledtext import ScrolledText
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # 配置文件
@@ -52,7 +54,6 @@ class BatchProcessorApp:
     def setup_ui(self):
         main_frame = ttkb.Frame(self.root, padding=15)
         main_frame.pack(fill=BOTH, expand=YES)
-        style = ttkb.Style()
 
         # --- 1. 输入输出设置 ---
         self.input_output = ttkb.LabelFrame(main_frame, text="输入输出设置")
@@ -66,7 +67,7 @@ class BatchProcessorApp:
         ttkb.Button(in_btn_frame, text="🎬 添加文件", command=self.add_files, bootstyle="primary-link").pack(side=LEFT, padx=5)
         ttkb.Button(in_btn_frame, text="📂 添加文件夹", command=self.add_folder, bootstyle="warning-link").pack(side=LEFT, padx=5)
         
-        style.configure("MyColor.TCheckbutton", foreground="seagreen")
+        self.style.configure("MyColor.TCheckbutton", foreground="seagreen")
         ttkb.Checkbutton(in_btn_frame, text="递归子目录", variable=self.recursive_var, style="MyColor.TCheckbutton").pack(side=LEFT, padx=10)
         ttkb.Button(in_btn_frame, text="清空列表", command=self.clear_tree_items, bootstyle="danger-link", width=8).pack(side=RIGHT, padx=0)
 
@@ -74,8 +75,8 @@ class BatchProcessorApp:
         tree_container = ttkb.Frame(input_tab)
         tree_container.pack(fill=BOTH, expand=YES)
 
-        style.configure("Treeview", font=("Microsoft YaHei", 10), rowheight=30)
-        style.configure("Treeview.Heading", font=("Microsoft YaHei", 9, "bold"))
+        self.style.configure("Treeview", font=("Microsoft YaHei", 10), rowheight=30)
+        self.style.configure("Treeview.Heading", font=("Microsoft YaHei", 9, "bold"))
 
         columns = ("name", "size", "duration", "v_codec", "v_bitrate", "a_codec", "a_bitrate", "path")
         self.tree = ttkb.Treeview(tree_container, columns=columns, show='headings', height=4, bootstyle="primary")
@@ -115,11 +116,11 @@ class BatchProcessorApp:
         ttkb.Label(output_tab, text="同名处理:").pack(side=RIGHT, padx=(5,5))
 
         # --- 2. 命令编辑区 ---
-        cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令", bootstyle="success", padding=5)
+        cmd_frame = ttkb.LabelFrame(main_frame, text="批量执行的命令")
         cmd_frame.pack(fill=X, pady=10)
 
         preset_row = ttkb.Frame(cmd_frame)
-        preset_row.pack(fill=X, pady=5)
+        preset_row.pack(fill=X, pady=5, padx=5)
         ttkb.Label(preset_row, text="选择预设:", bootstyle="primary").pack(side=LEFT, padx=0)
         self.preset_combo = ttkb.Combobox(preset_row, bootstyle="primary", state="readonly", width=25)
         self.preset_combo.pack(side=LEFT, padx=(5,0))
@@ -132,9 +133,9 @@ class BatchProcessorApp:
         ttkb.Label(preset_row, text="另存预设:", bootstyle="primary").pack(side=RIGHT, padx=0)
 
         self.cmd_text = ttkb.Text(cmd_frame, height=4, font=("Consolas", 11), foreground="blue")
-        self.cmd_text.pack(fill=X, pady=5)
+        self.cmd_text.pack(fill=X, pady=5, padx=5)
         self.cmd_text.insert(END, "ffmpeg -i {input} -c:v libx265 -preset medium -cq 16 -c:a copy {name}_done.mp4")
-        ttkb.Label(cmd_frame, text="输入：{input}； 输出：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(side=LEFT)
+        ttkb.Label(cmd_frame, text="输入：{input}； 输出：{name}=原名, {ext}=原后缀", font=("Microsoft YaHei", 9)).pack(side=LEFT, padx=5)
 
         # 运行控制排
         button_f = ttkb.Frame(main_frame)
@@ -148,7 +149,8 @@ class BatchProcessorApp:
         self.merge_btn = ttkb.Button(button_f, text="🔗 合并输入", command=self.merge_process, bootstyle="info", width=15)
         self.merge_btn.pack(side=RIGHT, padx=10) 
 
-        self.log_area = ttkb.ScrolledText(main_frame, height=5, state=DISABLED, font=("Consolas", 9))
+        # 【修复点2】使用标准库 ScrolledText，完美兼容 state=DISABLED
+        self.log_area = ScrolledText(main_frame, height=5, state=DISABLED, font=("Consolas", 9))
         self.log_area.pack(fill=BOTH, expand=YES, pady=0)
         self.log_area.tag_configure("信息", foreground="#8f0a74")
         self.log_area.tag_configure("进展", foreground="#059803")
