@@ -27,7 +27,7 @@ class BatchProcessorApp:
         default_font.configure(family="Microsoft YaHei", size=10, weight="normal")
         
         # 核心变量
-        self.video_exts = ('.mp4', '.mkv', '.mov', '.avi', '.mpeg', '.mpg', '.wmv', '.m2ts', '.webm', '.flv')
+        self.video_exts = ('.mp4', '.mkv', '.mov', '.avi', '.mpeg', '.mpg', '.wmv', '.m2ts', '.webm', '.flv', '.srt')
         self.audio_exts = ('.mp3', '.aac', '.mka', '.mpa', '.m4a', '.flac', '.wav', '.wma', '.ogg', '.ape')
         self.process_signal = ["frame=", "time=", "speed=", "正在处理视频："]
         
@@ -42,9 +42,13 @@ class BatchProcessorApp:
         self.output_path_var = ttkb.StringVar(value="默认使用输入文件所在目录")
 
         self.pattern_pitch = re.compile(r"(?<=rubberband=pitch=)([-]?\d+)")
+        #  匹配包含 {name} 的字符串，前后可以有任何非空白字符
         self.pattern_name = re.compile(r'[\S]*?\{name\}[\S]*')
-        self.pattern_input = re.compile(r'-i\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
-        self.pattern_output = re.compile(r'(?:"([^"]+)"|\'([^\']+)\'|(\S+))\s*$')
+        #  提取 -i 后面的参数值，支持带引号的字符串（引号本身不会被捕获）
+        # (?:-i|--input) - 非捕获组，匹配 -i 或 --input
+        self.pattern_input = re.compile(r'(?:-i|--input)\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
+        # 匹配行尾的参数（可能是文件名或字符串），支持引号，引号内的空格不会分割
+        self.pattern_output = re.compile(r'(?=.*ffmpeg)(?:"([^"]+)"|\'([^\']+)\'|(\S+))\s*$')
         
         self.setup_ui()
         self.create_context_menu()
